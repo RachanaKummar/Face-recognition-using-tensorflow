@@ -1,0 +1,317 @@
+
+from keras.layers import Input, Lambda, Dense, Flatten
+from keras.models import Model
+from keras.preprocessing.image import ImageDataGenerator
+from keras.models import Sequential
+import numpy as np
+from glob import glob
+import matplotlib.pyplot as plt
+from PIL import Image   
+from numpy import asarray
+from mtcnn.mtcnn import MTCNN
+from scipy.spatial.distance import cosine
+from keras_vggface.vggface import VGGFace
+from keras_vggface.utils import preprocess_input
+ 
+
+# re-size all the images to this
+IMAGE_SIZE = [224, 224]
+
+train_path = 'E:\Tensorflow-Face-Recognition-master\Deep-Learning-Face-Recognition-master\DATASET\trainingImages'
+valid_path = 'E:\Tensorflow-Face-Recognition-master\Deep-Learning-Face-Recognition-master\DATASET\TestImages'
+
+# add preprocessing layer to the front of VGG
+vgg =VGGFace(input_shape=IMAGE_SIZE + [3], weights='vggface', include_top=False)
+vgg.summary()
+
+
+output - 
+Model: "vggface_vgg16"
+_________________________________________________________________
+Layer (type)                 Output Shape              Param #   
+=================================================================
+input_1 (InputLayer)         (None, 224, 224, 3)       0         
+_________________________________________________________________
+conv1_1 (Conv2D)             (None, 224, 224, 64)      1792      
+_________________________________________________________________
+conv1_2 (Conv2D)             (None, 224, 224, 64)      36928     
+_________________________________________________________________
+pool1 (MaxPooling2D)         (None, 112, 112, 64)      0         
+_________________________________________________________________
+conv2_1 (Conv2D)             (None, 112, 112, 128)     73856     
+_________________________________________________________________
+conv2_2 (Conv2D)             (None, 112, 112, 128)     147584    
+_________________________________________________________________
+pool2 (MaxPooling2D)         (None, 56, 56, 128)       0         
+_________________________________________________________________
+conv3_1 (Conv2D)             (None, 56, 56, 256)       295168    
+_________________________________________________________________
+conv3_2 (Conv2D)             (None, 56, 56, 256)       590080    
+_________________________________________________________________
+conv3_3 (Conv2D)             (None, 56, 56, 256)       590080    
+_________________________________________________________________
+pool3 (MaxPooling2D)         (None, 28, 28, 256)       0         
+_________________________________________________________________
+conv4_1 (Conv2D)             (None, 28, 28, 512)       1180160   
+_________________________________________________________________
+conv4_2 (Conv2D)             (None, 28, 28, 512)       2359808   
+_________________________________________________________________
+conv4_3 (Conv2D)             (None, 28, 28, 512)       2359808   
+_________________________________________________________________
+pool4 (MaxPooling2D)         (None, 14, 14, 512)       0         
+_________________________________________________________________
+conv5_1 (Conv2D)             (None, 14, 14, 512)       2359808   
+_________________________________________________________________
+conv5_2 (Conv2D)             (None, 14, 14, 512)       2359808   
+_________________________________________________________________
+conv5_3 (Conv2D)             (None, 14, 14, 512)       2359808   
+_________________________________________________________________
+pool5 (MaxPooling2D)         (None, 7, 7, 512)         0         
+=================================================================
+Total params: 14,714,688
+Trainable params: 14,714,688
+Non-trainable params: 0
+_________________________________________________________________
+
+
+
+for layer in vgg.layers:
+    layer.trainable = False
+
+folders = glob(r'E:\Tensorflow-Face-Recognition-master\Deep-Learning-Face-Recognition-master\DATASET\trainingImages\*')
+folders  
+
+output - ['E:\\Tensorflow-Face-Recognition-master\\Deep-Learning-Face-Recognition-master\\DATASET\\trainingImages\\jerry_seinfeld',
+ 'E:\\Tensorflow-Face-Recognition-master\\Deep-Learning-Face-Recognition-master\\DATASET\\trainingImages\\kangana',
+ 'E:\\Tensorflow-Face-Recognition-master\\Deep-Learning-Face-Recognition-master\\DATASET\\trainingImages\\mindy_kaling',
+ 'E:\\Tensorflow-Face-Recognition-master\\Deep-Learning-Face-Recognition-master\\DATASET\\trainingImages\\priyanka',
+ 'E:\\Tensorflow-Face-Recognition-master\\Deep-Learning-Face-Recognition-master\\DATASET\\trainingImages\\rachana']
+
+
+x = Flatten()(vgg.output)
+# x = Dense(1000, activation='relu')(x)
+prediction = Dense(len(folders), activation='softmax')(x)
+model = Model(inputs=vgg.input, outputs=prediction)
+model.summary()
+
+output - 
+Model: "model_1"
+_________________________________________________________________
+Layer (type)                 Output Shape              Param #   
+=================================================================
+input_1 (InputLayer)         (None, 224, 224, 3)       0         
+_________________________________________________________________
+conv1_1 (Conv2D)             (None, 224, 224, 64)      1792      
+_________________________________________________________________
+conv1_2 (Conv2D)             (None, 224, 224, 64)      36928     
+_________________________________________________________________
+pool1 (MaxPooling2D)         (None, 112, 112, 64)      0         
+_________________________________________________________________
+conv2_1 (Conv2D)             (None, 112, 112, 128)     73856     
+_________________________________________________________________
+conv2_2 (Conv2D)             (None, 112, 112, 128)     147584    
+_________________________________________________________________
+pool2 (MaxPooling2D)         (None, 56, 56, 128)       0         
+_________________________________________________________________
+conv3_1 (Conv2D)             (None, 56, 56, 256)       295168    
+_________________________________________________________________
+conv3_2 (Conv2D)             (None, 56, 56, 256)       590080    
+_________________________________________________________________
+conv3_3 (Conv2D)             (None, 56, 56, 256)       590080    
+_________________________________________________________________
+pool3 (MaxPooling2D)         (None, 28, 28, 256)       0         
+_________________________________________________________________
+conv4_1 (Conv2D)             (None, 28, 28, 512)       1180160   
+_________________________________________________________________
+conv4_2 (Conv2D)             (None, 28, 28, 512)       2359808   
+_________________________________________________________________
+conv4_3 (Conv2D)             (None, 28, 28, 512)       2359808   
+_________________________________________________________________
+pool4 (MaxPooling2D)         (None, 14, 14, 512)       0         
+_________________________________________________________________
+conv5_1 (Conv2D)             (None, 14, 14, 512)       2359808   
+_________________________________________________________________
+conv5_2 (Conv2D)             (None, 14, 14, 512)       2359808   
+_________________________________________________________________
+conv5_3 (Conv2D)             (None, 14, 14, 512)       2359808   
+_________________________________________________________________
+pool5 (MaxPooling2D)         (None, 7, 7, 512)         0         
+_________________________________________________________________
+flatten_1 (Flatten)          (None, 25088)             0         
+_________________________________________________________________
+dense_1 (Dense)              (None, 5)                 125445    
+=================================================================
+Total params: 14,840,133
+Trainable params: 125,445
+Non-trainable params: 14,714,688
+_________________________________________________________________
+
+
+
+model.compile(
+  loss='categorical_crossentropy',
+  optimizer='adam',
+  metrics=['accuracy'])
+from keras.preprocessing.image import ImageDataGenerator
+train_datagen = ImageDataGenerator(rescale = 1./255,
+                                   shear_range = 0.2,
+                                   zoom_range = 0.2,
+                                   horizontal_flip = True)
+test_datagen = ImageDataGenerator(rescale = 1./255)
+training_set = train_datagen.flow_from_directory(r'E:\Tensorflow-Face-Recognition-master\Deep-Learning-Face-Recognition-master\DATASET\trainingImages',
+                                                 target_size = (224, 224),
+                                                 batch_size = 32,
+                                                 class_mode = 'categorical')
+test_set = test_datagen.flow_from_directory(r'E:\Tensorflow-Face-Recognition-master\Deep-Learning-Face-Recognition-master\DATASET\TestImages',
+                                            target_size = (224, 224),
+                                            batch_size = 32,
+                                            class_mode = 'categorical')
+output -                                             
+Found 229 images belonging to 5 classes.
+Found 41 images belonging to 5 classes.
+
+
+# fit the model
+r = model.fit_generator(
+  training_set,
+  validation_data=test_set,
+  epochs=25,
+  steps_per_epoch=len(training_set),
+  validation_steps=len(test_set))
+Epoch 1/25
+8/8 [==============================] - 66s 8s/step - loss: 1.2825 - accuracy: 0.5284 - val_loss: 1.5052 - val_accuracy: 0.3659
+Epoch 2/25
+8/8 [==============================] - 62s 8s/step - loss: 0.9210 - accuracy: 0.6812 - val_loss: 0.9401 - val_accuracy: 0.5366
+Epoch 3/25
+8/8 [==============================] - 63s 8s/step - loss: 0.6404 - accuracy: 0.7904 - val_loss: 0.8008 - val_accuracy: 0.6585
+Epoch 4/25
+8/8 [==============================] - 63s 8s/step - loss: 0.5615 - accuracy: 0.8515 - val_loss: 0.5857 - val_accuracy: 0.6829
+Epoch 5/25
+8/8 [==============================] - 63s 8s/step - loss: 0.4947 - accuracy: 0.8472 - val_loss: 1.0847 - val_accuracy: 0.6098
+Epoch 6/25
+8/8 [==============================] - 62s 8s/step - loss: 0.4392 - accuracy: 0.8472 - val_loss: 1.2175 - val_accuracy: 0.6098
+Epoch 7/25
+8/8 [==============================] - 62s 8s/step - loss: 0.3978 - accuracy: 0.8690 - val_loss: 0.9350 - val_accuracy: 0.6585
+Epoch 8/25
+8/8 [==============================] - 63s 8s/step - loss: 0.4005 - accuracy: 0.9170 - val_loss: 0.9773 - val_accuracy: 0.6585
+Epoch 9/25
+8/8 [==============================] - 67s 8s/step - loss: 0.3271 - accuracy: 0.9432 - val_loss: 0.9533 - val_accuracy: 0.6829
+Epoch 10/25
+8/8 [==============================] - 70s 9s/step - loss: 0.3052 - accuracy: 0.9432 - val_loss: 0.6868 - val_accuracy: 0.6829
+Epoch 11/25
+8/8 [==============================] - 63s 8s/step - loss: 0.2660 - accuracy: 0.9607 - val_loss: 0.7762 - val_accuracy: 0.6829
+Epoch 12/25
+8/8 [==============================] - 63s 8s/step - loss: 0.2695 - accuracy: 0.9476 - val_loss: 0.6876 - val_accuracy: 0.6829
+Epoch 13/25
+8/8 [==============================] - 64s 8s/step - loss: 0.2463 - accuracy: 0.9694 - val_loss: 0.6784 - val_accuracy: 0.6829
+Epoch 14/25
+8/8 [==============================] - 63s 8s/step - loss: 0.2231 - accuracy: 0.9825 - val_loss: 0.8575 - val_accuracy: 0.6829
+Epoch 15/25
+8/8 [==============================] - 63s 8s/step - loss: 0.2151 - accuracy: 0.9869 - val_loss: 0.8932 - val_accuracy: 0.6829
+Epoch 16/25
+8/8 [==============================] - 62s 8s/step - loss: 0.2088 - accuracy: 0.9694 - val_loss: 0.8667 - val_accuracy: 0.6341
+Epoch 17/25
+8/8 [==============================] - 64s 8s/step - loss: 0.2191 - accuracy: 0.9694 - val_loss: 0.4370 - val_accuracy: 0.6829
+Epoch 18/25
+8/8 [==============================] - 63s 8s/step - loss: 0.2190 - accuracy: 0.9694 - val_loss: 0.9677 - val_accuracy: 0.6829
+Epoch 19/25
+8/8 [==============================] - 63s 8s/step - loss: 0.1936 - accuracy: 0.9694 - val_loss: 0.7513 - val_accuracy: 0.6585
+Epoch 20/25
+8/8 [==============================] - 63s 8s/step - loss: 0.1837 - accuracy: 0.9651 - val_loss: 0.5254 - val_accuracy: 0.6829
+Epoch 21/25
+8/8 [==============================] - 62s 8s/step - loss: 0.1782 - accuracy: 0.9825 - val_loss: 0.4633 - val_accuracy: 0.6585
+Epoch 22/25
+8/8 [==============================] - 63s 8s/step - loss: 0.1663 - accuracy: 0.9825 - val_loss: 1.0096 - val_accuracy: 0.6341
+Epoch 23/25
+8/8 [==============================] - 63s 8s/step - loss: 0.1509 - accuracy: 0.9825 - val_loss: 0.7788 - val_accuracy: 0.6341
+Epoch 24/25
+8/8 [==============================] - 65s 8s/step - loss: 0.1429 - accuracy: 0.9825 - val_loss: 0.5404 - val_accuracy: 0.6585
+Epoch 25/25
+8/8 [==============================] - 73s 9s/step - loss: 0.1322 - accuracy: 0.9913 - val_loss: 0.7595 - val_accuracy: 0.6341
+
+
+
+# Importing the libraries
+import tensorflow as tf
+from keras.models import load_model
+#model.save('vgg.model')
+model.save('vggface-new.h5')
+
+from PIL import Image
+from keras.applications.vgg16 import preprocess_input
+import base64
+from io import BytesIO
+import json
+import random
+import cv2
+from keras.models import load_model
+import numpy as np
+
+from keras.preprocessing import image
+model = load_model('vggface-new.h5')
+
+# Loading the cascades
+face_cascade = cv2.CascadeClassifier('E:\FACE_DETECTION\OpenCV-Python-Series-master\OpenCV-Python-Series-master\src\cascades\data\haarcascade_frontalface_default.xml')
+
+def face_extractor(img):
+    # Function detects faces and returns the cropped face
+    # If no face detected, it returns the input image
+    
+    #gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+    faces = face_cascade.detectMultiScale(img, 1.3, 5)
+    
+    if faces is ():
+        return None
+    
+    # Crop all faces found
+    for (x,y,w,h) in faces:
+        cv2.rectangle(img,(x,y),(x+w,y+h),(0,255,255),2)
+        cropped_face = img[y:y+h, x:x+w]
+
+    return cropped_face
+
+# Doing some Face Recognition with the webcam
+video_capture = cv2.VideoCapture(0)
+while True:
+    _, frame = video_capture.read()
+    #canvas = detect(gray, frame)
+    #image, face =face_detector(frame)
+    
+    face=face_extractor(frame)
+    if type(face) is np.ndarray:
+        face = cv2.resize(face, (224, 224))
+        im = Image.fromarray(face, 'RGB')
+           #Resizing into 128x128 because we trained the model with this image size.
+        img_array = np.array(im)
+                    #Our keras model used a 4D tensor, (images x height x width x channel)
+                    #So changing dimension 128x128x3 into 1x128x128x3 
+        img_array = np.expand_dims(img_array, axis=0)
+        pred = model.predict(img_array)
+        print(pred)
+                     
+        name="None matching"
+        
+        
+        if(pred[0][0]>0.75):
+            name = 'jerry_seinfeld'
+        elif(pred[0][1]>0.75):
+            name = 'kangana'
+        elif(pred[0][2]>0.75):
+            name = 'mindy_kaling'
+        elif(pred[0][3]>0.75):
+            name = 'priyanka'
+        elif(pred[0][4]>0.75):
+            name = 'rachana'
+        else:
+            name = 'unknown'
+        
+        cv2.putText(frame,name, (50, 50), cv2.FONT_HERSHEY_COMPLEX, 1, (0,255,0), 2)
+    else:
+        cv2.putText(frame,"No face found", (50, 50), cv2.FONT_HERSHEY_COMPLEX, 1, (0,255,0), 2)
+    cv2.imshow('Video', frame)
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+video_capture.release()
+cv2.destroyAllWindows()
+
+       
